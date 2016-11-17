@@ -54,7 +54,7 @@ public class Helper {
         JSONParser parser = new JSONParser();
 
         Object object =
-                parser.parse(new FileReader(JavaTwitterHashTagJoinSentiments.class.getClassLoader()
+                parser.parse(new FileReader(TwitterHotHashTag.class.getClassLoader()
                         .getResource("twitter.json").getFile()));
 
         JSONObject jsonObject = (JSONObject) object;

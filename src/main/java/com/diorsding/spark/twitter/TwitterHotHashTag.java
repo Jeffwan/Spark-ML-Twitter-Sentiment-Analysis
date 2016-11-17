@@ -34,7 +34,7 @@ import twitter4j.Status;
  * @author jiashan
  *
  */
-public class JavaTwitterHashTagJoinSentiments {
+public class TwitterHotHashTag {
 
     class Tweet {
         Date date;
@@ -118,6 +118,10 @@ public class JavaTwitterHashTagJoinSentiments {
         hashTagPairsReduced.cache();
         hashTagPairsReduced.print();
 
+        // Find top count 60.
+        // filteredLines.reduceByWindow(reduceFunc, windowDuration, slideDuration);
+
+        // Find top count 5.
         filteredLines.foreachRDD(new Function<JavaRDD<String>, Void>() {
             @Override
             public Void call(JavaRDD<String> rddLines) throws Exception {
