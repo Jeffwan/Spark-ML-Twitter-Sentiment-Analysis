@@ -1,0 +1,6 @@
+
+src/main/resources/twitter.json
+target/
+.settings/
+.project
+.classpath
