@@ -38,10 +38,10 @@ public class TwitterHotHashTag {
             Logger.getRootLogger().setLevel(Level.WARN);
         }
 
-        String[] filters = Helper.configureTwitterCredentials();
+        Helper.configureTwitterCredentials();
         SparkConf sparkConf = new SparkConf().setAppName("JavaTwitterHashTagJoinSentiments").setMaster("local[2]");
         JavaStreamingContext jssc = new JavaStreamingContext(sparkConf, new Duration(2000));
-        JavaReceiverInputDStream<Status> stream = TwitterUtils.createStream(jssc, filters);
+        JavaReceiverInputDStream<Status> stream = TwitterUtils.createStream(jssc);
 
         // Concert twitter to POJO
         JavaDStream<Tweet> tweets =

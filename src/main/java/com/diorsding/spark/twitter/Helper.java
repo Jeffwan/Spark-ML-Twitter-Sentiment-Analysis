@@ -61,7 +61,7 @@ public class Helper {
         Logger.getLogger("org.apache.spark.streaming,NetworkInputTracker").setLevel(streamingLogLevel);
     }
 
-    public static String[] configureTwitterCredentials() throws IOException, ParseException, FileNotFoundException {
+    public static void configureTwitterCredentials() throws IOException, ParseException, FileNotFoundException {
         JSONParser parser = new JSONParser();
 
         Object object =
@@ -78,10 +78,6 @@ public class Helper {
         System.setProperty("twitter4j.oauth.consumerSecret", consumerSecret);
         System.setProperty("twitter4j.oauth.accessToken", accessToken);
         System.setProperty("twitter4j.oauth.accessTokenSecret", accessTokenSecret);
-
-        String[] filters = new String[] {consumerKey, consumerSecret, accessToken, accessTokenSecret};
-
-        return filters;
     }
 
 }

@@ -54,9 +54,9 @@ public class TwitterStreaming {
         SparkConf sparkConf = new SparkConf().setMaster("local[2]").setAppName("TwitterStreaming");
         JavaStreamingContext jssc = new JavaStreamingContext(sparkConf, Durations.seconds(1));
 
-        String[] filters = Helper.configureTwitterCredentials();
+        Helper.configureTwitterCredentials();
         // No need to fill filters in.
-        JavaReceiverInputDStream<Status> stream = TwitterUtils.createStream(jssc, new String[] {});
+        JavaReceiverInputDStream<Status> stream = TwitterUtils.createStream(jssc);
 
         // Concert twitter to POJO
 

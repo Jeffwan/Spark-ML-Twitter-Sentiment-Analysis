@@ -34,9 +34,9 @@ public class TwitterNLP {
 
         SparkConf sparkConf = new SparkConf().setAppName("TwitterNLP").setMaster("local[2]");
 
-        String[] filters = Helper.configureTwitterCredentials();
+        Helper.configureTwitterCredentials();
         JavaStreamingContext jssc = new JavaStreamingContext(sparkConf, new Duration(2000));
-        JavaReceiverInputDStream<Status> stream = TwitterUtils.createStream(jssc, filters);
+        JavaReceiverInputDStream<Status> stream = TwitterUtils.createStream(jssc);
 
         JavaDStream<String> tweets = stream.map(status -> status.getText());
 
