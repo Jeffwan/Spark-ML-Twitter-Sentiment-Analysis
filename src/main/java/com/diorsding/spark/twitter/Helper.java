@@ -31,6 +31,17 @@ import edu.stanford.nlp.util.CoreMap;
  */
 public class Helper {
 
+    private static final String keyspace = "test";
+    private static final String table = "twitter";
+
+    public static String getKeyspace() {
+        return keyspace;
+    }
+
+    public static String getTable() {
+        return table;
+    }
+
     public static void main(String[] args) {
         Properties props = new Properties();
         props.setProperty("annotators", "tokenize, ssplit, pos, lemma, parse, sentiment");

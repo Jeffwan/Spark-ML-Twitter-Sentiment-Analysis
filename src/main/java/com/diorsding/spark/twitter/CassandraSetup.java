@@ -8,23 +8,31 @@ import com.datastax.spark.connector.cql.CassandraConnector;
 public class CassandraSetup {
 
     public static void main(String[] args) {
-
         SparkConf sc = new SparkConf();
-
-        sc.set("cassandra.host", "127.0.0.1");
+        sc.set("spark.cassandra.connection.host", "10.148.254.9");
 
         CassandraConnector connector = CassandraConnector.apply(sc);
-
         Session session = connector.openSession();
 
-        session.execute("create keyspace if not exists $keyspace with replication = {'class':'SimpleStrategy', 'replication_factor':1};");
+        // 1. Create Keyspace
+        String createKeyspaceSQL =
+                String
+                .format("create keyspace if not exists %s with replication = {'class':'SimpleStrategy', 'replication_factor':1};",
+                        Helper.getKeyspace());
+        session.execute(createKeyspaceSQL);
 
-        /*
-         * session.execute("create table if not exists $CassandraKeyspace.$CassandraTable ( " + "date timestamp," +
-         * "user text," + "text text," + "PRIMARY KEY((data, user));"; + ") WITH CLUSTERING ORDER BY (dimension ASC);";
-         */
+        // 2. Create Table
+        // Cassandra doesn't assume default ordering for the other clustering keys so we have to specify it.
+        String createTableSQL =
+                String.format(
+                        "create table if not exists %s.%s (user text, text text, date timestamp, PRIMARY KEY((date), user)"
+                                + ") WITH CLUSTERING ORDER BY (user ASC);", Helper.getKeyspace(),
+                        Helper.getTable());
 
+        session.execute(createTableSQL);
 
+        // Seems mvn exec:java -Dexec.mainClass="com.diorsding.spark.twitter.CassandraSetup"
+        // won't exit immediately after running sql.
+        session.close();
     }
-
 }

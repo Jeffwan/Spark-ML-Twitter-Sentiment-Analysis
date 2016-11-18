@@ -3,7 +3,6 @@ package com.diorsding.spark.twitter;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
 import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.function.Function;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SQLContext;
@@ -19,6 +18,7 @@ import com.datastax.spark.connector.japi.rdd.CassandraTableScanJavaRDD;
  * @author jiashan
  *
  */
+
 public class TwitterSparkSQLAnalysis {
 
     public static void main(String[] args) {
@@ -48,20 +48,11 @@ public class TwitterSparkSQLAnalysis {
     private static void readTweetTable(SparkContext sc, SQLContext sqlContext) {
         CassandraTableScanJavaRDD<CassandraRow> data =
                 CassandraJavaUtil.javaFunctions(sc).cassandraTable("test", "words");
-        JavaRDD<CassandraRow> filterEmptyLine = data.filter(new Function<CassandraRow, Boolean>() {
-            @Override
-            public Boolean call(CassandraRow cassandraRow) throws Exception {
-                return cassandraRow.getString("??").trim().isEmpty();
-            }
-        });
 
-        JavaRDD<String> processedRDD = filterEmptyLine.map(new Function<CassandraRow, String>() {
-            @Override
-            public String call(CassandraRow row) throws Exception {
-                return row.getString("hehe");
-            }
-        });
+        JavaRDD<CassandraRow> filterEmptyLine =
+                data.filter(cassandraRow -> cassandraRow.getString("??").trim().isEmpty());
 
+        JavaRDD<String> processedRDD = filterEmptyLine.map(cassandraRow -> cassandraRow.getString("text"));
 
         DataFrame tweetTable = sqlContext.jsonRDD(processedRDD);
 
@@ -99,6 +90,7 @@ public class TwitterSparkSQLAnalysis {
                 sqlContext.sql("select actor.languages,count(*) as cnt from tweetTable"
                         + "group by actor.languages order by cnt des limit 25 ");
         Row[] activeUserRows = activeUserDF.collect();
+
         for (Row row : activeUserRows) {
             System.out.println(row);
         }

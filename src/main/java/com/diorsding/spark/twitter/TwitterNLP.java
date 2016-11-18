@@ -19,6 +19,14 @@ import org.json.simple.parser.ParseException;
 
 import twitter4j.Status;
 
+/**
+ * https://github.com/vspiewak/twitter-sentiment-analysis/blob/master/src/main/scala/com/github/vspiewak/util/SentimentAnalysisUtils.scala
+ * https://devpost.com/software/spark-mllib-twitter-sentiment-analysis
+ * https://github.com/P7h/Spark-MLlib-Twitter-Sentiment-Analysis/wiki
+ *
+ * @author jiashan
+ *
+ */
 public class TwitterNLP {
 
     public static void main(String[] args) throws FileNotFoundException, IOException, ParseException {
@@ -30,23 +38,13 @@ public class TwitterNLP {
         JavaStreamingContext jssc = new JavaStreamingContext(sparkConf, new Duration(2000));
         JavaReceiverInputDStream<Status> stream = TwitterUtils.createStream(jssc, filters);
 
+        JavaDStream<String> tweets = stream.map(status -> status.getText());
 
-
-        JavaDStream<String> tweets = stream.map(new Function<Status, String>() {
-            @Override
-            public String call(Status status) throws Exception {
-                return status.getText();
-            }
-        });
-
-        JavaDStream<String> tweetWithScoreDStream = tweets.map(new Function<String, String>() {
-            @Override
-            public String call(String tweetText) throws Exception {
-                return SentimentAnalysisUtils.detectSentiment(tweetText);
-            }
-        });
+        JavaDStream<String> tweetWithScoreDStream =
+                tweets.map(tweetText -> SentimentAnalysisUtils.detectSentiment(tweetText));
 
         // Save results to Mysql. DStream -> List<RDD> -> List<String> / per RDD.
+        // Seems not connector like cassandra. Need to use JDBC
         tweetWithScoreDStream.foreachRDD(new Function<JavaRDD<String>, Void>() {
 
             @Override
