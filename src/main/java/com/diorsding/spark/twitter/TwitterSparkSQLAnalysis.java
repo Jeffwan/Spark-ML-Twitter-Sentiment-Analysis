@@ -23,36 +23,43 @@ public class TwitterSparkSQLAnalysis {
 
     public static void main(String[] args) {
         SparkConf sparkConf =
-                new SparkConf(true).set("spark.cassandra.connect.host", "localhost")
-                        .set("spark.cassandra.auth.username", "cassandra")
-                        .set("spark.cassandra.auth.username", "cassandra");
-        SparkContext sc = new SparkContext("spark://127.0.0.1:7077", "test", sparkConf);
+                new SparkConf().setMaster("local[2]").setAppName("NetworkWordCount")
+                        .set("spark.cassandra.connection.host", "10.148.254.9");
+
+        SparkContext sc = new SparkContext(sparkConf);
         SQLContext sqlContext = new SQLContext(sc);
 
         // Step 1. Convert Table to RDD and cache.
         readTweetTable(sc, sqlContext);
 
         // Step 2. SparkSQL Analysis
-
         getTweetsSample(sqlContext);
 
-        findActiveUsers(sqlContext);
+        // - Can not find source data there. Need more complex structure to store tweets.
 
-        findActiveWindow(sqlContext);
+        // findActiveUsers(sqlContext);
+
+        // findActiveWindow(sqlContext);
 
         // TODO: find influenced user
 
         // TODO: find most common device
+
+
+        sc.stop();
     }
 
     private static void readTweetTable(SparkContext sc, SQLContext sqlContext) {
+
+        // cassandraTable(Helper.getKeyspace(), Helper.getTable(), CassandraJavaUtil.mapRowTo(Tweet.class)) ->
+        // CassandraTableScanJavaRDD<Tweet>
         CassandraTableScanJavaRDD<CassandraRow> data =
-                CassandraJavaUtil.javaFunctions(sc).cassandraTable("test", "words");
+                CassandraJavaUtil.javaFunctions(sc).cassandraTable(Helper.getKeyspace(), Helper.getTable());
 
         JavaRDD<CassandraRow> filterEmptyLine =
-                data.filter(cassandraRow -> cassandraRow.getString("??").trim().isEmpty());
+                data.filter(cassandraRow -> !cassandraRow.getString("text").trim().isEmpty());
 
-        JavaRDD<String> processedRDD = filterEmptyLine.map(cassandraRow -> cassandraRow.getString("text"));
+        JavaRDD<String> processedRDD = filterEmptyLine.map(cassandraRow -> cassandraRow.toString());
 
         DataFrame tweetTable = sqlContext.jsonRDD(processedRDD);
 
@@ -76,12 +83,13 @@ public class TwitterSparkSQLAnalysis {
     }
 
     private static void getTweetsSample(SQLContext sqlContext) {
-        Row[] rows = sqlContext.sql("select body from tweetTable Limit 100").collect();
+        Row[] rows = sqlContext.sql("select * from tweetTable Limit 10").collect();
+
         for (Row row : rows) {
             System.out.println(row);
         }
 
-        DataFrame tweetDF = sqlContext.sql("select body from tweetTable where body <> '' ");
+        // DataFrame tweetDF = sqlContext.sql("select * from tweetTable limit 5 ");
     }
 
     private static void findActiveUsers(SQLContext sqlContext) {

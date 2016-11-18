@@ -42,20 +42,15 @@ public class DumpTweetsToCassandra {
         JavaDStream<Tweet> tweets =
                 inputStream.map(status -> new Tweet(status.getUser().getName(), status.getText(), new Date()));
 
-        // TODO: How to validate JavaDStream content? If not valid straming data returns, we'd better skip hitting
+        // TODO: Validate JavaDStream content? If not valid streaming data returns, we'd better skip hitting cassandra?
 
-        // Write data to Cassandra
+        /*
+         * Write data to Cassandra. Since what we get is JavaDStream from Streaming, we use CassandraStreamingJavaUtil
+         * instead. Do not use RDD here. It make problem complex because we need to convert DStream to RDD again.
+         */
         CassandraStreamingJavaUtil.javaFunctions(tweets)
                 .writerBuilder(Helper.getKeyspace(), Helper.getTable(), CassandraJavaUtil.mapToRow(Tweet.class))
                 .saveToCassandra();
-
-
-        /*
-         * Since what we get is JavaDStream from Streaming, we use CassandraStreamingJavaUtil instead. Do not use RDD
-         * here. It make problem complex because we need to convert DStream to RDD again.
-         * CassandraJavaUtil.javaFunctions(tweetsRDD) .writerBuilder(Helper.getKeyspace(), Helper.getTable(),
-         * CassandraJavaUtil.mapToRow(Tweet.class)) .saveToCassandra();
-         */
 
         jssc.start();
         jssc.awaitTermination();
