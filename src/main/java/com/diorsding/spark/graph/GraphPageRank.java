@@ -1,4 +1,4 @@
-package com.diorsding.spark.ml;
+package com.diorsding.spark.graph;
 
 public class GraphPageRank {
 

@@ -1,9 +1,11 @@
-package com.diorsding.spark.ml;
+package com.diorsding.spark.graph;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.SQLContext;
+
+import com.diorsding.spark.ml.WikiPageClustering;
 
 /**
  * No Java Version API available now. Maven lib is used to serve scala.
