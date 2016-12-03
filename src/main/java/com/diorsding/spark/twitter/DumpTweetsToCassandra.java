@@ -42,15 +42,23 @@ public class DumpTweetsToCassandra {
         JavaDStream<Tweet> tweets =
                 inputStream.map(status -> new Tweet(status.getUser().getName(), status.getText(), new Date()));
 
-        // TODO: Validate JavaDStream content? If not valid streaming data returns, we'd better skip hitting cassandra?
+        /**
+         * TODO: Validate JavaDStream content? If not valid streaming data returns, we'd better skip hitting cassandra?
+         *
+         * Consider ETL process for twitter. I think maybe we can define some columns and store in cassandra.
+         */
 
         /*
          * Write data to Cassandra. Since what we get is JavaDStream from Streaming, we use CassandraStreamingJavaUtil
          * instead. Do not use RDD here. It make problem complex because we need to convert DStream to RDD again.
+         * 
+         * It's hard to store streaming data to file..? If we can aggregate file, then we can have another snapshot in
+         * HDFS as file.
          */
         CassandraStreamingJavaUtil.javaFunctions(tweets)
                 .writerBuilder(Helper.getKeyspace(), Helper.getTable(), CassandraJavaUtil.mapToRow(Tweet.class))
                 .saveToCassandra();
+
 
         jssc.start();
         jssc.awaitTermination();

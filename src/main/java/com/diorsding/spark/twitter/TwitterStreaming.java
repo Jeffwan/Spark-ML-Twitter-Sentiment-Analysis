@@ -27,7 +27,6 @@ import twitter4j.Status;
  * /spark/examples/streaming/twitter/JavaTwitterHashTagJoinSentiments.java
  *
  * 1. Solve Twitter Streaming
- * 2.
  *
  * @author jiashan
  *
@@ -40,14 +39,7 @@ public class TwitterStreaming {
 
         Logger.getLogger("org.apache.spark").setLevel(Level.WARN);
 
-        // if (!Logger.getRootLogger().getAllAppenders().hasMoreElements()) {
-        // Logger.getRootLogger().setLevel(Level.WARN);
-        // }
-
-        // wordCountDemo();
-
         streamingDemo();
-
     }
 
     public static void streamingDemo() throws FileNotFoundException, IOException, ParseException {
@@ -59,9 +51,9 @@ public class TwitterStreaming {
         JavaReceiverInputDStream<Status> stream = TwitterUtils.createStream(jssc);
 
         // Concert twitter to POJO
-
         JavaDStream<Status> tweetsWithGeo = stream.filter(status -> status.getText().contains("#"));
 
+        // Use AVRO data instead of my own data
         JavaDStream<Tweet> tweets =
                 tweetsWithGeo.map(twitter -> new Tweet(twitter.getUser().getName(), twitter.getText(), new Date()));
 
@@ -76,7 +68,7 @@ public class TwitterStreaming {
         JavaStreamingContext jssc = new JavaStreamingContext(conf, Durations.seconds(1));
 
         JavaReceiverInputDStream<String> lines = jssc.socketTextStream("localhost", 9999);
-        JavaDStream<String> words = lines.flatMap(word -> Arrays.asList(word.split(" ")));
+        JavaDStream<String> words = lines.flatMap(word -> Arrays.asList(word.split("//s+")));
         JavaPairDStream<String, Integer> pairs = words.mapToPair(word -> new Tuple2<String, Integer>(word, 1));
         JavaPairDStream<String, Integer> wordCounts = pairs.reduceByKey((i1, i2) -> (i1 + i2));
 
