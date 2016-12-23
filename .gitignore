@@ -1,6 +1,12 @@
-
+# Twitter OAuth Credentials
 src/main/resources/twitter.json
+
+# Project files
 target/
 .settings/
 .project
 .classpath
+
+# Intellij files
+*.iml
+.idea/
