@@ -1,22 +1,21 @@
 package com.diorsding.spark.twitter;
 
-import java.io.FileNotFoundException;
+import com.datastax.spark.connector.japi.CassandraJavaUtil;
+import com.datastax.spark.connector.japi.CassandraStreamingJavaUtil;
+
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Date;
 
 import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
 import org.apache.spark.SparkConf;
+import org.apache.spark.api.java.function.Function;
 import org.apache.spark.streaming.Durations;
 import org.apache.spark.streaming.api.java.JavaDStream;
-import org.apache.spark.streaming.api.java.JavaPairDStream;
 import org.apache.spark.streaming.api.java.JavaReceiverInputDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.apache.spark.streaming.twitter.TwitterUtils;
 import org.json.simple.parser.ParseException;
 
-import scala.Tuple2;
 import twitter4j.Status;
 
 /**
@@ -28,51 +27,62 @@ import twitter4j.Status;
  *
  * 1. Solve Twitter Streaming
  *
+ *
+ * Spark Cassandra Connector:
+ * https://github.com/datastax/spark-cassandra-connector/blob/master/doc/7_java_api.md
+ *
  * @author jiashan
  *
  */
 
 public class TwitterStreaming {
-
-    public static void main(String[] args) throws InterruptedException, FileNotFoundException, IOException,
-            ParseException {
-
-        Logger.getLogger("org.apache.spark").setLevel(Level.WARN);
+    public static void main(String[] args) throws InterruptedException, IOException, ParseException {
+        preSetup();
 
         streamingDemo();
     }
 
-    public static void streamingDemo() throws FileNotFoundException, IOException, ParseException {
-        SparkConf sparkConf = new SparkConf().setMaster("local[2]").setAppName("TwitterStreaming");
-        JavaStreamingContext jssc = new JavaStreamingContext(sparkConf, Durations.seconds(1));
+    private static void preSetup() throws IOException, ParseException {
+        Helper.setSparkLogLevel(Level.WARN, Level.WARN);
 
         Helper.configureTwitterCredentials();
+    }
+
+    public static void streamingDemo() {
+        SparkConf sparkConf = new SparkConf().setMaster("local[2]")
+            .setAppName(TwitterStreaming.class.getSimpleName())
+            .set(Constants.CASSANDRA_CONNECTION_HOST_KEY, Constants.CASSANDRA_CONNECTION_HOST_VALUE);
+        JavaStreamingContext jssc = new JavaStreamingContext(sparkConf, Durations.seconds(1));
+
         // No need to fill filters in.
         JavaReceiverInputDStream<Status> stream = TwitterUtils.createStream(jssc);
 
         // Concert twitter to POJO
-        JavaDStream<Status> tweetsWithGeo = stream.filter(status -> status.getText().contains("#"));
+        JavaDStream<Status> tweetsWithTag = stream.filter(status -> status.getText().contains("#"));
 
-        // Use AVRO data instead of my own data
-        JavaDStream<Tweet> tweets =
-                tweetsWithGeo.map(twitter -> new Tweet(twitter.getUser().getName(), twitter.getText(), new Date()));
+        // TODO: Use AVRO data instead of my own data. Store more information.
+//        JavaDStream<Tweet> tweets =
+//                tweetsWithTag.map(twitter -> new Tweet(twitter.getUser().getName(), twitter.getText(), new Date()));
 
-        tweets.print();
+        JavaDStream<Tweet> tweets = tweetsWithTag.map(new Function<Status, Tweet>() {
+            @Override
+            public Tweet call(Status status) throws Exception {
+                System.out.println(status.toString());
 
-        jssc.start();
-        jssc.awaitTermination();
-    }
+                return new Tweet(status.getUser().getName(), status.getText(), new Date());
+            }
+        });
 
-    public static void wordCountDemo() {
-        SparkConf conf = new SparkConf().setMaster("local[2]").setAppName("NetworkWordCount");
-        JavaStreamingContext jssc = new JavaStreamingContext(conf, Durations.seconds(1));
+//        tweets.print();
 
-        JavaReceiverInputDStream<String> lines = jssc.socketTextStream("localhost", 9999);
-        JavaDStream<String> words = lines.flatMap(word -> Arrays.asList(word.split("//s+")));
-        JavaPairDStream<String, Integer> pairs = words.mapToPair(word -> new Tuple2<String, Integer>(word, 1));
-        JavaPairDStream<String, Integer> wordCounts = pairs.reduceByKey((i1, i2) -> (i1 + i2));
-
-        wordCounts.print();
+        /*
+         * Write data to Cassandra. Since what we get is JavaDStream from Streaming, we use CassandraStreamingJavaUtil
+         * instead. Do not use RDD here. It make problem complex because we need to convert DStream to RDD again.
+         *
+         */
+        CassandraStreamingJavaUtil.javaFunctions(tweets)
+            .writerBuilder(Constants.CASSANDRA_TWITTER_KEYSPACE, Constants.CASSANDRA_TWITTER_TABLE, CassandraJavaUtil.mapToRow(Tweet.class))
+            .saveToCassandra();
 
         jssc.start();
         jssc.awaitTermination();

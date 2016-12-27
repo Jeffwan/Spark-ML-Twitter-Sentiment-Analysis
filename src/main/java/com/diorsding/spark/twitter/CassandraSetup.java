@@ -3,6 +3,7 @@ package com.diorsding.spark.twitter;
 import org.apache.spark.SparkConf;
 
 import com.datastax.driver.core.Session;
+import com.datastax.driver.core.querybuilder.Delete;
 import com.datastax.spark.connector.cql.CassandraConnector;
 
 public class CassandraSetup {
@@ -18,7 +19,7 @@ public class CassandraSetup {
         String createKeyspaceSQL =
                 String
                 .format("create keyspace if not exists %s with replication = {'class':'SimpleStrategy', 'replication_factor':1};",
-                        Helper.getKeyspace());
+                    Constants.CASSANDRA_TWITTER_KEYSPACE);
         session.execute(createKeyspaceSQL);
 
         // 2. Create Table
@@ -26,8 +27,8 @@ public class CassandraSetup {
         String createTableSQL =
                 String.format(
                         "create table if not exists %s.%s (user text, text text, date timestamp, PRIMARY KEY((date), user)"
-                                + ") WITH CLUSTERING ORDER BY (user ASC);", Helper.getKeyspace(),
-                        Helper.getTable());
+                                + ") WITH CLUSTERING ORDER BY (user ASC);", Constants.CASSANDRA_TWITTER_KEYSPACE,
+                    Constants.CASSANDRA_TWITTER_TABLE);
 
         session.execute(createTableSQL);
 

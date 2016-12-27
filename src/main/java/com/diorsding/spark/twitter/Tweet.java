@@ -5,7 +5,7 @@ import java.util.Date;
 
 public class Tweet implements Serializable {
 
-    private static final long serialVersionUID = 212121L;
+    private static final long serialVersionUID = 1l;
 
     private String user;
     private String text;
