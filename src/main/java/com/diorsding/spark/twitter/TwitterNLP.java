@@ -1,27 +1,22 @@
 package com.diorsding.spark.twitter;
 
-import com.diorsding.spark.utils.LogUtils;
-import com.diorsding.spark.utils.OAuthUtils;
 import com.diorsding.spark.utils.SentimentUtils;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 
-import org.apache.log4j.Level;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.VoidFunction;
-import org.apache.spark.streaming.Duration;
 import org.apache.spark.streaming.Durations;
-import org.apache.spark.streaming.Seconds;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaReceiverInputDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.apache.spark.streaming.twitter.TwitterUtils;
 import org.json.simple.parser.ParseException;
+
 
 import twitter4j.Status;
 
@@ -35,12 +30,15 @@ import twitter4j.Status;
  * @author jiashan
  *
  */
-public class TwitterNLP {
+public class TwitterNLP extends TwitterSparkBase {
 
-    public static void main(String[] args) throws FileNotFoundException, IOException, ParseException {
-        LogUtils.setSparkLogLevel(Level.WARN, Level.WARN);
-        OAuthUtils.configureTwitterCredentials();
+    public static void main(String[] args) throws IOException, ParseException {
+        preSetup();
 
+        nlpAnalyzer();
+    }
+
+    private static void nlpAnalyzer() {
         SparkConf sparkConf = new SparkConf().setAppName(TwitterNLP.class.getSimpleName()).setMaster("local[2]");
 
         JavaStreamingContext jssc = new JavaStreamingContext(sparkConf, Durations.seconds(2));

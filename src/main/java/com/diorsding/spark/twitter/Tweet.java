@@ -18,10 +18,6 @@ public class Tweet implements Serializable {
     private int score;
     private Date date;
 
-    public Tweet() {
-
-    }
-
     public Tweet(String user, String text, Date date) {
         this.user = user;
         this.text = text;

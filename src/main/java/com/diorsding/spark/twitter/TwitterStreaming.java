@@ -1,15 +1,11 @@
 package com.diorsding.spark.twitter;
 
-import com.datastax.spark.connector.japi.CassandraJavaUtil;
-import com.datastax.spark.connector.japi.CassandraStreamingJavaUtil;
-import com.diorsding.spark.utils.LogUtils;
-import com.diorsding.spark.utils.OAuthUtils;
+import com.diorsding.spark.utils.CassandraUtils;
 import com.diorsding.spark.utils.SentimentUtils;
 
 import java.io.IOException;
 import java.util.Date;
 
-import org.apache.log4j.Level;
 import org.apache.spark.SparkConf;
 import org.apache.spark.streaming.Durations;
 import org.apache.spark.streaming.api.java.JavaDStream;
@@ -44,46 +40,30 @@ import twitter4j.Status;
  *
  */
 
-public class TwitterStreaming {
+public class TwitterStreaming extends TwitterSparkBase {
     public static void main(String[] args) throws InterruptedException, IOException, ParseException {
         preSetup();
 
-        streamingDemo();
+        streamingEntry();
     }
 
-    private static void preSetup() throws IOException, ParseException {
-        LogUtils.setSparkLogLevel(Level.WARN, Level.WARN);
-
-        OAuthUtils.configureTwitterCredentials();
-    }
-
-    public static void streamingDemo() {
+    public static void streamingEntry() {
         SparkConf sparkConf = new SparkConf().setMaster("local[2]")
             .setAppName(TwitterStreaming.class.getSimpleName())
             .set(Constants.CASSANDRA_CONNECTION_HOST_KEY, Constants.CASSANDRA_CONNECTION_HOST_VALUE);
+
         JavaStreamingContext jssc = new JavaStreamingContext(sparkConf, Durations.seconds(1));
 
-        // No need to fill filters in.
         JavaReceiverInputDStream<Status> stream = TwitterUtils.createStream(jssc);
 
-        stream.print();
         // Filter tweets with geoLocation
         JavaDStream<Status> enGeoTweets = stream.filter(status -> hasGeoLocation(status) && isTweetEnglish(status));
-
 
         // Preprocess tweets
         // TODO: Use AVRO data instead of my own data. Store more information.
         JavaDStream<Tweet> tweets = enGeoTweets.map(status -> buildNewTweet(status));
 
-        /*
-         * Write data to Cassandra. Since what we get is JavaDStream from Streaming, we use CassandraStreamingJavaUtil
-         * instead. Do not use RDD here. It make problem complex because we need to convert DStream to RDD again.
-         *
-         */
-
-        CassandraStreamingJavaUtil.javaFunctions(tweets)
-            .writerBuilder(Constants.CASSANDRA_TWITTER_KEYSPACE, Constants.CASSANDRA_TWITTER_TABLE, CassandraJavaUtil.mapToRow(Tweet.class))
-            .saveToCassandra();
+        CassandraUtils.dumpTweetsToCassandra(tweets);
 
         jssc.start();
         jssc.awaitTermination();
@@ -101,11 +81,10 @@ public class TwitterStreaming {
             new Date());
     }
 
-    private static boolean isTweetEnglish(Status status) {
+    protected static boolean isTweetEnglish(Status status) {
 //        return "en".equals(status.getLang()) && "en".equals(status.getUser().getLang());
         return true;
     }
-
 
     private static boolean hasGeoLocation(Status status) {
         return status.getGeoLocation() != null;

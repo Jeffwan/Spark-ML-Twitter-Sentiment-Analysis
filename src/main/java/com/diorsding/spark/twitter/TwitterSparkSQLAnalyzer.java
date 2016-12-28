@@ -29,6 +29,10 @@ public class TwitterSparkSQLAnalyzer {
     public static void main(String[] args) {
         LogUtils.setSparkLogLevel(Level.ALL, Level.ALL);
 
+        sparkSQLAnalyzer();
+    }
+
+    private static void sparkSQLAnalyzer() {
         SparkConf sparkConf =
                 new SparkConf().setMaster("local[2]")
                     .setAppName(TwitterSparkSQLAnalyzer.class.getSimpleName())

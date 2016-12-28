@@ -15,11 +15,11 @@ import java.io.IOException;
  */
 public class OAuthUtils {
 
-    public static void configureTwitterCredentials() throws IOException, ParseException, FileNotFoundException {
+    public static void configureTwitterCredentials() throws IOException, ParseException {
         JSONParser parser = new JSONParser();
 
         Object object =
-            parser.parse(new FileReader(TwitterHotHashTag.class.getClassLoader()
+            parser.parse(new FileReader(OAuthUtils.class.getClassLoader()
                 .getResource("twitter.json").getFile()));
 
         JSONObject jsonObject = (JSONObject) object;
