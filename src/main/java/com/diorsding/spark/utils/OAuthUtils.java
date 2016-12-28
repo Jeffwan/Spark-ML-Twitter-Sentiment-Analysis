@@ -1,39 +1,26 @@
-package com.diorsding.spark.twitter;
+package com.diorsding.spark.utils;
+
+import com.diorsding.spark.twitter.TwitterHotHashTag;
+
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
-
-
 /**
- * https://github.com/amplab/training/blob/ampcamp4/streaming/java/TutorialHelper.java
- *
- * Twitter Streaming --> Spark Streaming (Preprocessing) --> Cassandra (Storage) Spark --> Cassnadra --> Spark SQL
- * Analytics --> MySQL (Process result) --> Virtualizaiton
- *
- *
- * @author jiashan
- *
+ * Created by jiashan on 12/27/16.
  */
-public class Helper {
-
-    public static void setSparkLogLevel(Level sparkLogLevel, Level streamingLogLevel) {
-        Logger.getLogger("org.apache.spark").setLevel(sparkLogLevel);
-        Logger.getLogger("org.apache.spark.streaming.NetworkInputTracker").setLevel(streamingLogLevel);
-    }
+public class OAuthUtils {
 
     public static void configureTwitterCredentials() throws IOException, ParseException, FileNotFoundException {
         JSONParser parser = new JSONParser();
 
         Object object =
-                parser.parse(new FileReader(TwitterHotHashTag.class.getClassLoader()
-                        .getResource("twitter.json").getFile()));
+            parser.parse(new FileReader(TwitterHotHashTag.class.getClassLoader()
+                .getResource("twitter.json").getFile()));
 
         JSONObject jsonObject = (JSONObject) object;
         String consumerKey = jsonObject.get("consumerKey").toString();
@@ -46,5 +33,4 @@ public class Helper {
         System.setProperty("twitter4j.oauth.accessToken", accessToken);
         System.setProperty("twitter4j.oauth.accessTokenSecret", accessTokenSecret);
     }
-
 }

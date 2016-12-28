@@ -19,14 +19,14 @@ import com.datastax.spark.connector.japi.rdd.CassandraTableScanJavaRDD;
  *
  */
 
-public class TwitterSparkSQLAnalysis {
+public class TwitterSparkSQLAnalyzer {
 
     private static final String TWEET_CONTENT_FIELD = "text";
     private static final String TWEET_DATAFRAME_TABLE = "tweetTable";
 
     public static void main(String[] args) {
         SparkConf sparkConf =
-                new SparkConf().setMaster("local[2]").setAppName(TwitterSparkSQLAnalysis.class.getSimpleName())
+                new SparkConf().setMaster("local[2]").setAppName(TwitterSparkSQLAnalyzer.class.getSimpleName())
                         .set(Constants.CASSANDRA_CONNECTION_HOST_KEY, Constants.CASSANDRA_CONNECTION_HOST_VALUE);
 
         SparkContext sc = new SparkContext(sparkConf);
