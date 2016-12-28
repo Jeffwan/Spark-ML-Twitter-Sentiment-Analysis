@@ -1,5 +1,9 @@
 package com.diorsding.spark.twitter;
 
+import com.diorsding.spark.utils.LogUtils;
+import com.diorsding.spark.utils.OAuthUtils;
+import com.diorsding.spark.utils.SentimentUtils;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.sql.Connection;
@@ -11,6 +15,8 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.VoidFunction;
 import org.apache.spark.streaming.Duration;
+import org.apache.spark.streaming.Durations;
+import org.apache.spark.streaming.Seconds;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaReceiverInputDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
@@ -24,24 +30,26 @@ import twitter4j.Status;
  * https://devpost.com/software/spark-mllib-twitter-sentiment-analysis
  * https://github.com/P7h/Spark-MLlib-Twitter-Sentiment-Analysis/wiki
  *
+ *
+ * I am not sure if I need to store these analysis data into mysql
  * @author jiashan
  *
  */
 public class TwitterNLP {
 
     public static void main(String[] args) throws FileNotFoundException, IOException, ParseException {
-        Helper.setSparkLogLevel(Level.WARN, Level.WARN);
+        LogUtils.setSparkLogLevel(Level.WARN, Level.WARN);
+        OAuthUtils.configureTwitterCredentials();
 
-        SparkConf sparkConf = new SparkConf().setAppName("TwitterNLP").setMaster("local[2]");
+        SparkConf sparkConf = new SparkConf().setAppName(TwitterNLP.class.getSimpleName()).setMaster("local[2]");
 
-        Helper.configureTwitterCredentials();
-        JavaStreamingContext jssc = new JavaStreamingContext(sparkConf, new Duration(2000));
+        JavaStreamingContext jssc = new JavaStreamingContext(sparkConf, Durations.seconds(2));
         JavaReceiverInputDStream<Status> stream = TwitterUtils.createStream(jssc);
 
         JavaDStream<String> tweets = stream.map(status -> status.getText());
 
         JavaDStream<String> tweetWithScoreDStream =
-                tweets.map(tweetText -> SentimentAnalysisUtils.detectSentiment(tweetText));
+                tweets.map(tweetText -> SentimentUtils.calculateSentimentScore(tweetText));
 
         // Save results to Mysql. DStream -> List<RDD> -> List<String> / per RDD.
         // Seems not connector like cassandra. Need to use JDBC

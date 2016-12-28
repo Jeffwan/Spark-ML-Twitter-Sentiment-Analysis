@@ -16,13 +16,10 @@ public class SentimentUtils {
 
     private static StanfordCoreNLP pipeline = null;
 
-    {
+    public static String calculateSentimentScore(String text) {
         Properties props = new Properties();
         props.setProperty("annotators", "tokenize, ssplit, pos, lemma, parse, sentiment");
         pipeline = new StanfordCoreNLP(props);
-    }
-
-    public static String calculateSentimentScore(String text) {
         Annotation annotation = pipeline.process(text);
 
         List<CoreMap> sentences = annotation.get(CoreAnnotations.SentencesAnnotation.class);
@@ -38,6 +35,9 @@ public class SentimentUtils {
     }
 
     public static int calculateWeightedSentimentScore(String text) {
+        Properties props = new Properties();
+        props.setProperty("annotators", "tokenize, ssplit, pos, lemma, parse, sentiment");
+        pipeline = new StanfordCoreNLP(props);
         Annotation annotation = pipeline.process(text);
 
         List<Double> sentiments = new ArrayList<Double>();

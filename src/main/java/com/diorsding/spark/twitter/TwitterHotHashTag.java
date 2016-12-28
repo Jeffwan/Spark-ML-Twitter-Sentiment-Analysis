@@ -1,5 +1,8 @@
 package com.diorsding.spark.twitter;
 
+import com.diorsding.spark.utils.LogUtils;
+import com.diorsding.spark.utils.OAuthUtils;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Arrays;
@@ -25,20 +28,15 @@ import twitter4j.Status;
 
 /**
  *
- * Use JSON file to store twitter credentials
- * http://crunchify.com/how-to-read-json-object-from-file-in-java/
- *
  * @author jiashan
  *
  */
 public class TwitterHotHashTag {
 
     public static void main(String[] args) throws FileNotFoundException, IOException, ParseException {
-        if (Logger.getRootLogger().getAllAppenders().hasMoreElements()) {
-            Logger.getRootLogger().setLevel(Level.WARN);
-        }
+        LogUtils.setSparkLogLevel(Level.WARN, Level.WARN);
 
-        Helper.configureTwitterCredentials();
+        OAuthUtils.configureTwitterCredentials();
         SparkConf sparkConf = new SparkConf().setAppName("JavaTwitterHashTagJoinSentiments").setMaster("local[2]");
         JavaStreamingContext jssc = new JavaStreamingContext(sparkConf, new Duration(2000));
         JavaReceiverInputDStream<Status> stream = TwitterUtils.createStream(jssc);
@@ -50,6 +48,7 @@ public class TwitterHotHashTag {
         hashTagAnalysis(stream);
 
         jssc.start();
+
         // 1.5.2 Doesn't need to throw InterruptedException here.
         jssc.awaitTermination();
 

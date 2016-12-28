@@ -2,13 +2,15 @@ package com.diorsding.spark.twitter;
 
 import com.datastax.spark.connector.japi.CassandraJavaUtil;
 import com.datastax.spark.connector.japi.CassandraStreamingJavaUtil;
+import com.diorsding.spark.utils.LogUtils;
+import com.diorsding.spark.utils.OAuthUtils;
+import com.diorsding.spark.utils.SentimentUtils;
 
 import java.io.IOException;
 import java.util.Date;
 
 import org.apache.log4j.Level;
 import org.apache.spark.SparkConf;
-import org.apache.spark.api.java.function.Function;
 import org.apache.spark.streaming.Durations;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaReceiverInputDStream;
@@ -31,7 +33,14 @@ import twitter4j.Status;
  * Spark Cassandra Connector:
  * https://github.com/datastax/spark-cassandra-connector/blob/master/doc/7_java_api.md
  *
+ * https://github.com/amplab/training/blob/ampcamp4/streaming/java/TutorialHelper.java
+ *
+ * Twitter Streaming --> Spark Streaming (Preprocessing) --> Cassandra (Storage) Spark --> Cassnadra --> Spark SQL
+ * Analytics --> MySQL (Process result) --> Virtualizaiton
+ *
+ *
  * @author jiashan
+ *
  *
  */
 
@@ -43,9 +52,9 @@ public class TwitterStreaming {
     }
 
     private static void preSetup() throws IOException, ParseException {
-        Helper.setSparkLogLevel(Level.WARN, Level.WARN);
+        LogUtils.setSparkLogLevel(Level.WARN, Level.WARN);
 
-        Helper.configureTwitterCredentials();
+        OAuthUtils.configureTwitterCredentials();
     }
 
     public static void streamingDemo() {
@@ -57,34 +66,52 @@ public class TwitterStreaming {
         // No need to fill filters in.
         JavaReceiverInputDStream<Status> stream = TwitterUtils.createStream(jssc);
 
-        // Concert twitter to POJO
-        JavaDStream<Status> tweetsWithTag = stream.filter(status -> status.getText().contains("#"));
+        stream.print();
+        // Filter tweets with geoLocation
+        JavaDStream<Status> enGeoTweets = stream.filter(status -> hasGeoLocation(status) && isTweetEnglish(status));
 
+
+        // Preprocess tweets
         // TODO: Use AVRO data instead of my own data. Store more information.
-//        JavaDStream<Tweet> tweets =
-//                tweetsWithTag.map(twitter -> new Tweet(twitter.getUser().getName(), twitter.getText(), new Date()));
-
-        JavaDStream<Tweet> tweets = tweetsWithTag.map(new Function<Status, Tweet>() {
-            @Override
-            public Tweet call(Status status) throws Exception {
-                System.out.println(status.toString());
-
-                return new Tweet(status.getUser().getName(), status.getText(), new Date());
-            }
-        });
-
-//        tweets.print();
+        JavaDStream<Tweet> tweets = enGeoTweets.map(status -> buildNewTweet(status));
 
         /*
          * Write data to Cassandra. Since what we get is JavaDStream from Streaming, we use CassandraStreamingJavaUtil
          * instead. Do not use RDD here. It make problem complex because we need to convert DStream to RDD again.
          *
          */
+
         CassandraStreamingJavaUtil.javaFunctions(tweets)
             .writerBuilder(Constants.CASSANDRA_TWITTER_KEYSPACE, Constants.CASSANDRA_TWITTER_TABLE, CassandraJavaUtil.mapToRow(Tweet.class))
             .saveToCassandra();
 
         jssc.start();
         jssc.awaitTermination();
+    }
+
+    private static Tweet buildNewTweet(Status status) {
+        return new Tweet(status.getUser().getId(),
+            status.getUser().getName(),
+            status.getUser().getScreenName(),
+            status.getUser().getMiniProfileImageURL(),
+            replaceNewLines(status.getText()),
+            status.getGeoLocation() == null ? null : status.getGeoLocation().getLatitude(),
+            status.getGeoLocation() == null ? null : status.getGeoLocation().getLongitude(),
+            SentimentUtils.calculateWeightedSentimentScore(status.getText()),
+            new Date());
+    }
+
+    private static boolean isTweetEnglish(Status status) {
+//        return "en".equals(status.getLang()) && "en".equals(status.getUser().getLang());
+        return true;
+    }
+
+
+    private static boolean hasGeoLocation(Status status) {
+        return status.getGeoLocation() != null;
+    }
+
+    private static String replaceNewLines(String text) {
+        return text.replace("\n", "");
     }
 }

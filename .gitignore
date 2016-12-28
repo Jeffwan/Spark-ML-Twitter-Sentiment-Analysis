@@ -4,6 +4,7 @@ src/main/resources/twitter.json
 # Project files
 target/
 .settings/
+setting.xml
 .project
 .classpath
 

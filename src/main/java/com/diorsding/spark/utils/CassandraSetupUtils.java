@@ -1,12 +1,15 @@
-package com.diorsding.spark.twitter;
+package com.diorsding.spark.utils;
 
 import org.apache.spark.SparkConf;
 
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.querybuilder.Delete;
 import com.datastax.spark.connector.cql.CassandraConnector;
+import com.diorsding.spark.twitter.Constants;
 
-public class CassandraSetup {
+import java.util.Date;
+
+public class CassandraSetupUtils {
 
     public static void main(String[] args) {
         SparkConf sc = new SparkConf();
@@ -25,14 +28,15 @@ public class CassandraSetup {
         // 2. Create Table
         // Cassandra doesn't assume default ordering for the other clustering keys so we have to specify it.
         String createTableSQL =
-                String.format(
-                        "create table if not exists %s.%s (user text, text text, date timestamp, PRIMARY KEY((date), user)"
-                                + ") WITH CLUSTERING ORDER BY (user ASC);", Constants.CASSANDRA_TWITTER_KEYSPACE,
-                    Constants.CASSANDRA_TWITTER_TABLE);
+        String.format(
+                "create table if not exists %s.%s (id bigint, user text, screen_name text, profile_image_url text, text text, " +
+                    "latitude double, longitude double, score int, date timestamp, PRIMARY KEY((date), user)"
+                        + ") WITH CLUSTERING ORDER BY (user ASC);", Constants.CASSANDRA_TWITTER_KEYSPACE,
+            Constants.CASSANDRA_TWITTER_TABLE);
 
         session.execute(createTableSQL);
 
-        // Seems mvn exec:java -Dexec.mainClass="com.diorsding.spark.twitter.CassandraSetup"
+        // Seems mvn exec:java -Dexec.mainClass="com.diorsding.spark.utils.CassandraSetupUtils"
         // won't exit immediately after running sql.
         session.close();
     }

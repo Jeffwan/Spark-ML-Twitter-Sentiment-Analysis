@@ -1,5 +1,6 @@
 package com.diorsding.spark.twitter;
 
+import org.apache.log4j.Level;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
 import org.apache.spark.api.java.JavaRDD;
@@ -10,6 +11,7 @@ import org.apache.spark.sql.SQLContext;
 import com.datastax.spark.connector.japi.CassandraJavaUtil;
 import com.datastax.spark.connector.japi.CassandraRow;
 import com.datastax.spark.connector.japi.rdd.CassandraTableScanJavaRDD;
+import com.diorsding.spark.utils.LogUtils;
 
 /**
  * Read Spark Cassandra Connector Doc Carefully. All are needed.
@@ -25,9 +27,12 @@ public class TwitterSparkSQLAnalyzer {
     private static final String TWEET_DATAFRAME_TABLE = "tweetTable";
 
     public static void main(String[] args) {
+        LogUtils.setSparkLogLevel(Level.ALL, Level.ALL);
+
         SparkConf sparkConf =
-                new SparkConf().setMaster("local[2]").setAppName(TwitterSparkSQLAnalyzer.class.getSimpleName())
-                        .set(Constants.CASSANDRA_CONNECTION_HOST_KEY, Constants.CASSANDRA_CONNECTION_HOST_VALUE);
+                new SparkConf().setMaster("local[2]")
+                    .setAppName(TwitterSparkSQLAnalyzer.class.getSimpleName())
+                    .set(Constants.CASSANDRA_CONNECTION_HOST_KEY, Constants.CASSANDRA_CONNECTION_HOST_VALUE);
 
         SparkContext sc = new SparkContext(sparkConf);
         SQLContext sqlContext = new SQLContext(sc);
@@ -85,11 +90,28 @@ public class TwitterSparkSQLAnalyzer {
         }
     }
 
+    /**
+     * +--------------------+
+     * |     _corrupt_record|
+     * +--------------------+
+     * |CassandraRow{date...|
+     * |CassandraRow{date...|
+     * |CassandraRow{date...|
+     *
+     * CassandraRow{date: 2016-12-27 17:22:52-0800, user: りょう＠複ワイド至上主義, id: 306043004, latitude: 35.630029, longitude: 139.7938556,
+     * profile_image_url: http://pbs.twimg.com/profile_images/616608945721839617/oWP3C0_S_mini.jpg, score: -1, screen_name: xRulershipx,
+     * text: 有明着いた！}
+     *
+     * @param sqlContext
+     */
     private static void getTweetsSample(SQLContext sqlContext) {
-        Row[] rows = sqlContext.sql("select * from tweetTable Limit 10").collect();
+        DataFrame tweetsDF = sqlContext.sql("select * from tweetTable Limit 10");
 
+        tweetsDF.show();
+
+        Row[] rows = tweetsDF.collect();
         for (Row row : rows) {
-            System.out.println(row);
+            System.out.println(row.get(0));
         }
     }
 
