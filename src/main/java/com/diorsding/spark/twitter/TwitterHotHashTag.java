@@ -11,7 +11,11 @@ import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.Function2;
+import org.apache.spark.api.java.function.MapFunction;
+import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.streaming.Duration;
+import org.apache.spark.streaming.Durations;
+import org.apache.spark.streaming.Time;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
 import org.apache.spark.streaming.api.java.JavaReceiverInputDStream;
@@ -31,7 +35,7 @@ import twitter4j.Status;
 public class TwitterHotHashTag extends TwitterSparkBase {
 
     private static final Long BATCH_INTERVAL = 2000l;
-    private static final Long WINDOW_DURATION = 20000l;
+    private static final Long WINDOW_DURATION = 10000l;
     private static final Long SLIDE_DURATION = 2000l;
 
     public static void main(String[] args) throws IOException, ParseException {
@@ -67,46 +71,29 @@ public class TwitterHotHashTag extends TwitterSparkBase {
         JavaPairDStream<String, Integer> hashTagsPairs =
                 filteredLines.mapToPair(hashTag -> new Tuple2<String, Integer>(hashTag, 1));
 
+        /* Did not use SLIDE_DURATION
+         *
         JavaPairDStream<String, Integer> hashTagPairsReduced =
                 hashTagsPairs.reduceByKeyAndWindow((integer1, integer2) -> (integer1 + integer2),
                     new Duration(WINDOW_DURATION), new Duration(SLIDE_DURATION));
 
         hashTagPairsReduced.print();
+        */
 
-        // How to automatically sort these tags and
+        JavaPairDStream<Integer, String> topicCounts60 = hashTagsPairs
+            .reduceByKeyAndWindow((integer1, integer2) -> (integer1 + integer2), Durations.seconds(3600))
+            .mapToPair(tuple -> tuple.swap())
+            .transformToPair(integerStringJavaPairRDD -> integerStringJavaPairRDD.sortByKey(false));
 
-//        hashTagPairsReduced.foreach(new Function<JavaPairRDD<String, Integer>, Void>() {
-//            @Override
-//            public Void call(JavaPairRDD<String, Integer> stringIntegerJavaPairRDD) throws Exception {
-//                List<Tuple2<String, Integer>> collect = stringIntegerJavaPairRDD.collect();
-//                System.out.println(collect.size());
-//                System.out.println(collect);
-//
-//                return null;
-//            }
-//        });
+        topicCounts60.foreachRDD(new Function<JavaPairRDD<Integer, String>, Void>() {
+            @Override
+            public Void call(JavaPairRDD<Integer, String> topicCounts60RDD) throws Exception {
+                List<Tuple2<Integer, String>> top10Topics = topicCounts60RDD.take(10);// get Top 10.
 
-//        // Find top count 5.
-//        filteredLines.foreachRDD(new Function<JavaRDD<String>, Void>() {
-//            @Override
-//            public Void call(JavaRDD<String> rddLines) throws Exception {
-//                List<String> top5 = rddLines.take(5);
-//                System.out.println(String.format("Popular topics in last 60 seconds (%d total) ", rddLines.count()));
-//
-//                return null;
-//            }
-//        });
-
-
-//        filteredLines.foreachRDD(rddLines -> {
-//            rddLines.cache();
-//
-//            List<String> top5 = rddLines.take(5);
-//            System.out.println(String.format("%s", top5));
-//            System.out.println(String.format("Popular topics in last 10 seconds (%d total) ", rddLines.count()));
-//
-//            return null;
-//        });
-
+                top10Topics.forEach(tuple -> System.out.println(String.format("%s, (%d tweets)", tuple._2(), tuple._1())));
+                // How to cache somewhere and show UI
+                return null;
+            }
+        });
     }
 }
