@@ -77,6 +77,8 @@ public class TwitterStreaming extends TwitterSparkBase {
             replaceNewLines(status.getText()),
             status.getGeoLocation() == null ? null : status.getGeoLocation().getLatitude(),
             status.getGeoLocation() == null ? null : status.getGeoLocation().getLongitude(),
+            status.getLang(),
+            status.getSource(),
             SentimentUtils.calculateWeightedSentimentScore(status.getText()),
             new Date());
     }

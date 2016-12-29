@@ -28,6 +28,7 @@ import twitter4j.Status;
 
 
 /**
+ * This is a e2e test class. Main logic will be integrated in to {@link TwitterStreaming}
  *
  * @author jiashan
  *
@@ -65,8 +66,8 @@ public class TwitterHotHashTag extends TwitterSparkBase {
     public static void hashTagAnalysis(JavaReceiverInputDStream<Status> stream) {
         JavaDStream<Status> enTweets = stream.filter(tweet -> isTweetEnglish(tweet));
         JavaDStream<String> splitLines = enTweets.flatMap(status -> Arrays.asList(status.getText().split(" ")));
+        JavaDStream<String> filteredLines = splitLines.filter(line -> line.startsWith("#")).map(line -> line.trim());
 
-        JavaDStream<String> filteredLines = splitLines.filter(line -> line.startsWith("#"));
 
         JavaPairDStream<String, Integer> hashTagsPairs =
                 filteredLines.mapToPair(hashTag -> new Tuple2<String, Integer>(hashTag, 1));
@@ -91,7 +92,7 @@ public class TwitterHotHashTag extends TwitterSparkBase {
                 List<Tuple2<Integer, String>> top10Topics = topicCounts60RDD.take(10);// get Top 10.
 
                 top10Topics.forEach(tuple -> System.out.println(String.format("%s, (%d tweets)", tuple._2(), tuple._1())));
-                // How to cache somewhere and show UI
+                // Cache somewhere and show UI
                 return null;
             }
         });

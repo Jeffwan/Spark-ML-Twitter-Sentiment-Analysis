@@ -1,5 +1,7 @@
 package com.diorsding.spark.utils;
 
+import com.google.common.base.Preconditions;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -16,71 +18,101 @@ public class SentimentUtils {
 
     private static StanfordCoreNLP pipeline = null;
 
-    public static String calculateSentimentScore(String text) {
-        Properties props = new Properties();
-        props.setProperty("annotators", "tokenize, ssplit, pos, lemma, parse, sentiment");
-        pipeline = new StanfordCoreNLP(props);
-        Annotation annotation = pipeline.process(text);
-
-        List<CoreMap> sentences = annotation.get(CoreAnnotations.SentencesAnnotation.class);
-
-        String sentiment = null;
-        for (CoreMap sentence : sentences) {
-            sentiment = sentence.get(SentimentCoreAnnotations.SentimentClass.class);
+    public static StanfordCoreNLP getPipelineInstance() {
+        if (pipeline == null) {
+            Properties props = new Properties();
+            props.setProperty("annotators", "tokenize, ssplit, pos, lemma, parse, sentiment");
+            pipeline = new StanfordCoreNLP(props);
         }
 
-        // Calculate total, average and jiaquan
-
-        return sentiment;
+        return pipeline;
     }
 
     public static int calculateWeightedSentimentScore(String text) {
-        Properties props = new Properties();
-        props.setProperty("annotators", "tokenize, ssplit, pos, lemma, parse, sentiment");
-        pipeline = new StanfordCoreNLP(props);
-        Annotation annotation = pipeline.process(text);
+        Annotation annotation = getPipelineInstance().process(text);
 
         List<Double> sentiments = new ArrayList<Double>();
         List<Integer> sizes = new ArrayList<Integer>();
 
+        int longest = 0;
+        int mainSentiment = 0;
+
         List<CoreMap> sentences = annotation.get(CoreAnnotations.SentencesAnnotation.class);
 
+        // Sentiment analysis for every sentence
         for (CoreMap sentence : sentences) {
             Tree tree = sentence.get(SentimentCoreAnnotations.SentimentAnnotatedTree.class);
             int sentiment = RNNCoreAnnotations.getPredictedClass(tree);
 
-            sentiments.add(sentiment + 0.0);
-            sizes.add(String.valueOf(sentiment).length());
+            String partText = sentence.toString();
+            if (partText.length() > longest) {
+                mainSentiment = sentiment;
+                longest = partText.length();
+            }
+
+            sentiments.add(sentiment + 0.0); // convert int to double
+            sizes.add(partText.length());
         }
 
-        int weightedSentiment = 0; // by default value;
+        // Calculate main, avg and weighted sentiment score
+        double avgSentiment = sentiments.isEmpty()? -1 : sentiments.stream().mapToDouble(Double::doubleValue).sum() / sentiments.size();
+        double weightedSentiment = sentiments.isEmpty()? -1: getProduct(sentiments, sizes) / sizes.stream().mapToInt(Integer::intValue).sum();
+        mainSentiment = sentiments.isEmpty() ? -1: mainSentiment;
 
-        if (sentiments.isEmpty()) {
-            weightedSentiment = -1;
-        } else {
-            weightedSentiment = 1;
-        }
+//        System.out.println("debug: sentences size: " + sentences.size() + "main " + mainSentiment + " avg " + avgSentiment + " weighted " + weightedSentiment);
 
         return normalizeCoreNLPSentiment(weightedSentiment);
     }
 
-    private static int normalizeCoreNLPSentiment(int score) {
-        if (score <= 0.0) { //neutral
+    private static double getProduct(List<Double> sentiments, List<Integer> sizes) {
+        Preconditions.checkState(sentiments.size() == sizes.size());
+
+        int size = sentiments.size();
+        double result = 0;
+
+        for (int i = 0; i < size; i++) {
+            result += sentiments.get(i) * sizes.get(i);
+        }
+
+        return result;
+    }
+
+
+    /**
+     * 0 -> very negative
+     * 1 -> negative
+     * 2 -> neutral
+     * 3 -> positive
+     * 4 -> very positive
+     *
+     * @param score
+     * @return
+     */
+    private static int normalizeCoreNLPSentiment(double score) {
+        if (score <= 0.0) {
+            return -999;
+        }
+
+        if (score < 1.0) {
             return 0;
         }
 
-        if (score < 2.0) { //negative
-            return -1;
-        }
-
-        if (score < 3.0) { //neutral
-            return 0;
-        }
-
-        if (score < 5.0) { //positive
+        if (score < 2.0) {
             return 1;
         }
 
-        return 0; // can not find the sentiment, give default value
+        if (score < 3.0) {
+            return 2;
+        }
+
+        if (score < 4.0) {
+            return 3;
+        }
+
+        if (score < 5.0) {
+            return 4;
+        }
+
+        return -999; // can not find the sentiment, give default value
     }
 }

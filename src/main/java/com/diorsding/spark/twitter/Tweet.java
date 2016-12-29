@@ -1,5 +1,6 @@
 package com.diorsding.spark.twitter;
 
+
 import java.io.Serializable;
 import java.util.Date;
 
@@ -15,6 +16,8 @@ public class Tweet implements Serializable {
     private String text;
     private Double latitude;
     private Double longitude;
+    private String language;
+    private String device;
     private int score;
     private Date date;
 
@@ -25,7 +28,7 @@ public class Tweet implements Serializable {
     }
 
     public Tweet(Long id, String user, String screenName, String profileImageUrl, String text, Double latitude,
-                 Double longitude, int score, Date date) {
+                 Double longitude, String language, String device, int score, Date date) {
         this.id = id;
         this.user = user;
         this.screenName = screenName;
@@ -33,6 +36,8 @@ public class Tweet implements Serializable {
         this.text = text;
         this.latitude = latitude;
         this.longitude = longitude;
+        this.language = language;
+        this.device = device;
         this.score = score;
         this.date = date;
     }
@@ -113,4 +118,42 @@ public class Tweet implements Serializable {
     public void setLongitude(Double longitude) {
         this.longitude = longitude;
     }
+
+    public String getLanguage() {
+        return language;
+    }
+
+    public void setLanguage(String language) {
+        this.language = language;
+    }
+
+    public String getDevice() {
+        return device;
+    }
+
+    public void setDevice(String device) {
+        this.device = device;
+    }
+
+    @Override
+    public String toString() {
+        return "id: " + id + " date: " + date + " user: " + user;
+    }
+
+    //    @Override
+//    public String toString() {
+//        return MoreObjects.toStringHelper(this)
+//            .add("id", id)
+//            .add("user", user)
+//            .add("screenName", screenName)
+//            .add("profileImageUrl", profileImageUrl)
+//            .add("text", text)
+//            .add("latitude", latitude)
+//            .add("longitude", longitude)
+//            .add("language", language)
+//            .add("device", device)
+//            .add("score", score)
+//            .add("date", date)
+//            .toString();
+//    }
 }

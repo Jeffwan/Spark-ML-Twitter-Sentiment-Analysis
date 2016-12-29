@@ -12,6 +12,11 @@ import com.datastax.spark.connector.japi.CassandraJavaUtil;
 import com.datastax.spark.connector.japi.CassandraRow;
 import com.datastax.spark.connector.japi.rdd.CassandraTableScanJavaRDD;
 import com.diorsding.spark.utils.LogUtils;
+import com.diorsding.spark.utils.SentimentUtils;
+
+import twitter4j.Status;
+
+import java.util.Date;
 
 /**
  * Read Spark Cassandra Connector Doc Carefully. All are needed.
@@ -27,7 +32,7 @@ public class TwitterSparkSQLAnalyzer {
     private static final String TWEET_DATAFRAME_TABLE = "tweetTable";
 
     public static void main(String[] args) {
-        LogUtils.setSparkLogLevel(Level.ALL, Level.ALL);
+        LogUtils.setSparkLogLevel(Level.INFO, Level.INFO);
 
         sparkSQLAnalyzer();
     }
@@ -47,54 +52,67 @@ public class TwitterSparkSQLAnalyzer {
         // Step 2. SparkSQL Analysis
         getTweetsSample(sqlContext);
 
-        // - Can not find source data there. Need more complex structure to store tweets.
+        findActiveLanguages(sqlContext);
 
-        // findActiveUsers(sqlContext);
+        findMostCommonDevice(sqlContext);
 
-        // findActiveWindow(sqlContext);
+        // TODO: findActiveTimeWindow(sqlContext);
 
         // TODO: find influenced user
-
-        // TODO: find most common device
-
 
         sc.stop();
     }
 
+
     private static void readTweetTable(SparkContext sc, SQLContext sqlContext) {
-        // cassandraTable(Helper.getKeyspace(), Helper.getTable(), CassandraJavaUtil.mapRowTo(Tweet.class)) ->
-        // CassandraTableScanJavaRDD<Tweet>
+        /** Get CassandraRow
         CassandraTableScanJavaRDD<CassandraRow> data =
                 CassandraJavaUtil.javaFunctions(sc).cassandraTable(Constants.CASSANDRA_TWITTER_KEYSPACE, Constants.CASSANDRA_TWITTER_TABLE);
+        */
+
+        CassandraTableScanJavaRDD<Tweet> data = CassandraJavaUtil.javaFunctions(sc)
+            .cassandraTable(Constants.CASSANDRA_TWITTER_KEYSPACE, Constants.CASSANDRA_TWITTER_TABLE,
+            CassandraJavaUtil.mapRowTo(Tweet.class));
 
         // Filter non-empty tweets
-        JavaRDD<CassandraRow> nonEmptyTweetsRDD =
-                data.filter(cassandraRow -> !cassandraRow.getString(TWEET_CONTENT_FIELD).trim().isEmpty());
+        JavaRDD<Tweet> nonEmptyTweetsRDD = data.filter(cassandraRow -> !cassandraRow.getText().trim().isEmpty());
 
-        JavaRDD<String> jsonFormatTweetsRDD = nonEmptyTweetsRDD.map(cassandraRow -> cassandraRow.toString());
+        /* Not sure how to convert CassandraRow to DF */
+        // JavaRDD<String> jsonFormatTweetsRDD = nonEmptyTweetsRDD.map(cassandraRow -> cassandraRow.toString());
 
-        DataFrame tweetTable = sqlContext.jsonRDD(jsonFormatTweetsRDD);
+        /**
+         * Date is not supported in SparkSQL now. http://stackoverflow.com/questions/29731011/sparksql-not-supporting-java-util-date
+         *
+         * By the way, RDD is immutable. We can not edit it in VoidFunction but have to convert to a new Tweet object.
+         */
+        JavaRDD<Tweet> nonDateTweetsRDD = nonEmptyTweetsRDD.map(tweet -> buildNewTweet(tweet));
+
+        DataFrame tweetTable = sqlContext.createDataFrame(nonDateTweetsRDD, Tweet.class);
 
         tweetTable.registerTempTable(TWEET_DATAFRAME_TABLE);
 
         sqlContext.cacheTable(TWEET_DATAFRAME_TABLE);
+
+        // Let's check table schema
+        tweetTable.printSchema();
     }
 
-    private static void findActiveWindow(SQLContext sqlContext) {
-        DataFrame activeWindowDF =
-                sqlContext
-                        .sql("select actor.twtterTimeZone, substr(postedTime, 0, 9), acount(*) as total_count from tweetTable"
-                                + "where actor.twitterTimeZone IS NOT NULL"
-                                + "Group by actor.twitterTimeZone, substr(postedTime, 0, 9)"
-                                + "order by total_count desc" + "limit 15");
-
-        Row[] activeWindowRows = activeWindowDF.collect();
-        for (Row row : activeWindowRows) {
-            System.out.println(row);
-        }
+    private static Tweet buildNewTweet(Tweet tweet) {
+        return new Tweet(tweet.getId(),
+            tweet.getUser(),
+            tweet.getScreenName(),
+            tweet.getProfileImageUrl(),
+            tweet.getText(),
+            tweet.getLatitude(),
+            tweet.getLongitude(),
+            tweet.getLanguage(),
+            tweet.getDevice(),
+            tweet.getScore(),
+            null);
     }
 
     /**
+     * The following format is for CassandraRow. It's not helpful for DF analysis.
      * +--------------------+
      * |     _corrupt_record|
      * +--------------------+
@@ -112,27 +130,48 @@ public class TwitterSparkSQLAnalyzer {
         DataFrame tweetsDF = sqlContext.sql("select * from tweetTable Limit 10");
 
         tweetsDF.show();
-
-        Row[] rows = tweetsDF.collect();
-        for (Row row : rows) {
-            System.out.println(row.get(0));
-        }
     }
 
-    private static void findActiveUsers(SQLContext sqlContext) {
-        // More active User
+    private static void findActiveLanguages(SQLContext sqlContext) {
+        // More active languages
         DataFrame activeUserDF =
-                sqlContext.sql("select actor.languages,count(*) as cnt from tweetTable"
-                        + "group by actor.languages order by cnt des limit 25 ");
+                sqlContext.sql("select language, count(*) as cnt from tweetTable"
+                        + " group by language order by cnt desc limit 25 ");
         Row[] activeUserRows = activeUserDF.collect();
 
+        System.out.println("find Active Languages");
         for (Row row : activeUserRows) {
             System.out.println(row);
         }
-
-        System.out.print("Q1 completed");
     }
 
+    private static void findMostCommonDevice(SQLContext sqlContext) {
+        // More active languages
+        DataFrame activeUserDF =
+            sqlContext.sql("select device, count(*) as cnt from tweetTable"
+                + " group by device order by cnt desc limit 25 ");
+        Row[] activeUserRows = activeUserDF.collect();
+
+        System.out.println("find most common device");
+        for (Row row : activeUserRows) {
+            System.out.println(row);
+        }
+    }
+
+    /*
+    private static void findActiveWindow(SQLContext sqlContext) {
+        DataFrame activeWindowDF =
+            sqlContext
+                .sql("select actor.twtterTimeZone, substr(postedTime, 0, 9), acount(*) as total_count from tweetTable"
+                    + "where actor.twitterTimeZone IS NOT NULL"
+                    + "Group by actor.twitterTimeZone, substr(postedTime, 0, 9)"
+                    + "order by total_count desc" + "limit 15");
+
+        Row[] activeWindowRows = activeWindowDF.collect();
+        for (Row row : activeWindowRows) {
+            System.out.println(row);
+        }
+    }
 
     private static void findStartEndTime(SQLContext sqlContext) {
         // More active User
@@ -141,14 +180,11 @@ public class TwitterSparkSQLAnalyzer {
                         "select timestampMs as ts as cnt from tweetTable"
                                 + "where timestampsMs<> '' order by ts DESC limit 1").collect()[0];
 
-        System.out.print("Q1 completed");
-
         Row endTime =
                 sqlContext.sql(
                         "select timestampMs as ts as cnt from tweetTable"
                                 + "where timestampsMs<> '' order by ts ASC limit 1").collect()[0];
-
-        System.out.print("Q1 completed");
     }
+    */
 
 }

@@ -10,8 +10,10 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.VoidFunction;
+import org.apache.spark.sql.execution.columnar.DOUBLE;
 import org.apache.spark.streaming.Durations;
 import org.apache.spark.streaming.api.java.JavaDStream;
+import org.apache.spark.streaming.api.java.JavaPairDStream;
 import org.apache.spark.streaming.api.java.JavaReceiverInputDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.apache.spark.streaming.twitter.TwitterUtils;
@@ -20,13 +22,19 @@ import org.json.simple.parser.ParseException;
 
 import twitter4j.Status;
 
+import scala.Tuple2;
+
 /**
+ *
+ * This is a e2e test class. Main logic will be integrated in to {@link TwitterStreaming}
+ *
  * https://github.com/vspiewak/twitter-sentiment-analysis/blob/master/src/main/scala/com/github/vspiewak/util/SentimentAnalysisUtils.scala
  * https://devpost.com/software/spark-mllib-twitter-sentiment-analysis
  * https://github.com/P7h/Spark-MLlib-Twitter-Sentiment-Analysis/wiki
  *
  *
- * I am not sure if I need to store these analysis data into mysql
+ * I am not sure if I need to store these analysis data into mysql.
+ *
  * @author jiashan
  *
  */
@@ -46,38 +54,12 @@ public class TwitterNLP extends TwitterSparkBase {
 
         JavaDStream<String> tweets = stream.map(status -> status.getText());
 
-        JavaDStream<String> tweetWithScoreDStream =
-                tweets.map(tweetText -> SentimentUtils.calculateSentimentScore(tweetText));
+        JavaPairDStream<String, Double> tweetWithScoreDStream =
+                tweets.mapToPair(tweetText -> new Tuple2<>(tweetText, Double.valueOf(SentimentUtils.calculateWeightedSentimentScore(tweetText))));
 
-        // Save results to Mysql. DStream -> List<RDD> -> List<String> / per RDD.
-        // Seems not connector like cassandra. Need to use JDBC
-        tweetWithScoreDStream.foreachRDD(new Function<JavaRDD<String>, Void>() {
-
-            @Override
-            public Void call(JavaRDD<String> tweetStreamRDD) throws Exception {
-                Connection connection = DriverManager.getConnection("jdbc://localhost:3306/test", "root", "root");
-                // For each RDD. for
-
-                // "INSEERT INTO SENTIMENT(SENTIMENT) VALUES (result)";
-
-                tweetStreamRDD.foreach(new VoidFunction<String>() {
-
-                    @Override
-                    public void call(String record) throws Exception {
-                        // save record here.
-                    }
-                });
-
-                return null;
-            }
-
-
-        });
-
+        tweetWithScoreDStream.print();
 
         jssc.start();
-
-        // 1.5.2 Doesn't need to throw InterruptedException here.
         jssc.awaitTermination();
     }
 

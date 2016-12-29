@@ -34,7 +34,7 @@ public class CassandraUtils {
         String createTableSQL =
             String.format(
                 "create table if not exists %s.%s (id bigint, user text, screen_name text, profile_image_url text, text text, " +
-                    "latitude double, longitude double, score int, date timestamp, PRIMARY KEY((date), user)"
+                    "latitude double, longitude double, language text, device text, score int, date timestamp, PRIMARY KEY((date), user)"
                     + ") WITH CLUSTERING ORDER BY (user ASC);", Constants.CASSANDRA_TWITTER_KEYSPACE,
                 Constants.CASSANDRA_TWITTER_TABLE);
 
