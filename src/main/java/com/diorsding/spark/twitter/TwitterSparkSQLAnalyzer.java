@@ -19,6 +19,13 @@ import twitter4j.Status;
 import java.util.Date;
 
 /**
+ * This batch job should run periodly like few hours.
+ *
+ * Result like language, device count is accumulate results. Could be within a time window.
+ * Seems SparkSQL doesn't have good support for Date. I will skip this part.
+ *
+ * Store batch result into redis cache which will be used to feed virtualization.
+ *
  * Read Spark Cassandra Connector Doc Carefully. All are needed.
  * https://github.com/datastax/spark-cassandra-connector/tree/master/doc
  *
