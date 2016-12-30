@@ -7,20 +7,25 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.StringJoiner;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
+import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.streaming.Durations;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
 import org.apache.spark.streaming.api.java.JavaReceiverInputDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
+import org.apache.spark.streaming.dstream.ConstantInputDStream;
 import org.apache.spark.streaming.twitter.TwitterUtils;
 import org.json.simple.parser.ParseException;
 
 import twitter4j.Status;
 
+import redis.clients.jedis.Jedis;
+import redis.clients.jedis.Pipeline;
 import scala.Tuple2;
 
 /**
@@ -51,7 +56,6 @@ public class TwitterStreaming extends TwitterSparkBase {
 
     public static void main(String[] args) throws InterruptedException, IOException, ParseException {
         preSetup();
-
 
         SparkConf sparkConf = new SparkConf().setMaster("local[2]")
             .setAppName(TwitterStreaming.class.getSimpleName())
@@ -100,6 +104,35 @@ public class TwitterStreaming extends TwitterSparkBase {
         JavaDStream<Tweet> tweets = stream
             .filter(status -> hasGeoLocation(status) && isTweetEnglish(status))
             .map(status -> buildNewTweet(status));
+
+        tweets.cache();
+
+        String DELIMITER = "|";
+
+        tweets.foreach(new Function<JavaRDD<Tweet>, Void>() {
+            @Override
+            public Void call(JavaRDD<Tweet> tweetJavaRDD) throws Exception {
+                tweetJavaRDD.foreach(tweet -> {
+                    Jedis jedis = new Jedis(Constants.REDIS_CONNECTION_HOST, Constants.REDIS_CONNECTION_PORT);
+                    Pipeline pipelined = jedis.pipelined();
+                    StringJoiner stringJoiner = new StringJoiner(DELIMITER);
+                    String data = stringJoiner
+                        .add(String.valueOf(tweet.getId()))
+                        .add(tweet.getUser())
+                        .add(tweet.getProfileImageUrl())
+                        .add(tweet.getText())
+                        .add(String.valueOf(tweet.getLatitude()))
+                        .add(String.valueOf(tweet.getLongitude()))
+                        .add(String.valueOf(tweet.getScore()))
+                        .add(tweet.getDate().toString())
+                        .toString();
+
+                    pipelined.publish(Constants.REDIS_CHANNEL_STREAMING_TWEET, data);
+                    pipelined.sync();
+                });
+                return null;
+            }
+        });
 
         CassandraUtils.dumpTweetsToCassandra(tweets);
     }

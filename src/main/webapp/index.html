@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<head>
+    <!--<link rel="stylesheet" type="text/css" href="/static/css/styles.css"/>-->
+    <script src="http://cdnjs.cloudflare.com/ajax/libs/d3/3.5.3/d3.min.js"></script>
+    <script src="http://cdnjs.cloudflare.com/ajax/libs/topojson/1.6.9/topojson.min.js"></script>
+    <script src="./node_modules/datamaps/dist/datamaps.world.min.js" type="text/javascript"></script>
+    <title>Twitter Sentiment Analysis with Spark</title>
+</head>
+<body>
+<a href="https://github.com/jeffwan"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://camo.githubusercontent.com/52760788cde945287fbb584134c4cbc2bc36f904/68747470733a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f77686974655f6666666666662e706e67" alt="Fork me on GitHub" data-canonical-src="https://s3.amazonaws.com/github/ribbons/forkme_right_white_ffffff.png"></a>
+<div id="header">
+    <h1>Twitter Sentiment Analysis with Spark</h1>
+</div>
+<div id="subtext1">
+    <h3>
+        <span class="underline">Tech Stack</span>: Java, Spark {MLlib, Streaming, SQL}, Stanford CoreNLP, Cassandra, Redis, NodeJS and Datamaps.
+    </h3>
+</div>
+<div id="subtext2">
+    <h3>Please check the accompanying <a class="linker" href="http://jeffwan.net/" target="_blank">blog post</a> for more info.
+    </h3>
+</div>
+<div id="worldmap" style="position: relative; width: 500px; height: 350px;"></div>
+<script>
+
+
+var source = new EventSource('/stream');
+
+
+    var worldmap = new Datamap({
+    element: document.getElementById('worldmap'),
+    scope: 'world',
+    projection: 'mercator',
+    responsive: true,
+    geographyConfig: {
+        popupOnHover: false,
+        highlightOnHover: false
+    },
+    bubblesConfig: {
+        radius: 7,
+        animate: true,
+        exitDelay: 30000 // Milliseconds
+    },
+    fills: {
+        defaultFill: '#E5DBD2',
+        "0": 'blue',
+        "-1": 'red',
+        "1": 'green'
+    },
+    done: function(datamap) {
+        datamap.svg.call(d3.behavior.zoom().on("zoom", redraw));
+        //$("#resetZoom").on("click", function(){ resetZoom(); })
+        function redraw() {
+            datamap.svg.selectAll("g").attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
+        }
+
+        function resetZoom() {
+            datamap.svg.selectAll("g").attr("transform", "translate(0,0)scale(1.0)");
+        }
+    }
+});
+
+worldmap.legend({
+    //legendTitle: "Sentiment",
+    labels: {
+        "2": 'Very Positive',
+        "1": 'Positive',
+        "0": 'Neutral',
+        "-1": 'Negative',
+        "-2": 'Very Negative'
+    }
+});
+
+d3.select(window).on('resize', function() {
+    worldmap.resize();
+});
+
+function determineColor(sentiment) {
+    var newColor = sentiment == 0 ? "blue" : (sentiment == -1 ? "red" : "green");
+    return newColor;
+}
+
+function determineEmoji(sentiment) {
+    var newColor = sentiment == 0 ? "&#x1F44C;" : (sentiment == -1 ? "&#x1F44E;" : "&#128077;");
+    return newColor;
+}
+
+var popupTemplateFunc = function(geo, data) {
+    var url = "https://twitter.com/" + data.user + "/status/" + data.id;
+    var tip = "<div><h3><span style='vertical-align:middle'>@" + data.name + '</span><img style="vertical-align:middle" height="70" width="70" src="' + data.pictureTemplateUrl + '"></h3></div>';
+    tip += "<h6>" + data.date + "</h6>";
+    tip += "<h4>" + data.text + "</h4>";
+    <!--tip += "Spark MLlib:<font size='6em' color=" + determineColor(parseInt(data.fillKey)) + ">" + determineEmoji(parseInt(data.fillKey)) + "</font>";-->
+    tip += "<br>Stanford CoreNLP:<font size='6em' color=" + determineColor(parseInt(data.fillKey)) + ">" + determineEmoji(parseInt(data.fillKey)) + "</font>";
+    return "<div class='hoverinfo tooltip'>" + tip + '</div>';
+}
+
+source.onmessage
+
+source.addEventListener('message', function(event) {
+
+    data = event.data.split("|");
+    console.log(data[2]);
+    var bubble = {
+                "id": data[0],
+            "name": data[1],
+            "pictureTemplateUrl": data[2],
+            "text": data[3],
+            "latitude": data[4],
+            "longitude": data[5],
+            "fillKey": data[6],
+            "date": data[7]
+    }
+
+    var bubble_array = [];
+        bubble_array.push(bubble);
+        worldmap.bubbles(bubble_array, {
+            popupTemplate: popupTemplateFunc
+        });
+}, false);
+</script>
+</body>

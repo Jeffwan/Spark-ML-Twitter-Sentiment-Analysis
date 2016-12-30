@@ -1,0 +1,16 @@
+{
+  "name": "twitter-sentiment-virsualization",
+  "version": "1.0.0",
+  "description": "Twitter Sentiment Virsualization",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "author": "Jiaxin Shan",
+  "license": "ISC",
+  "dependencies": {
+    "datamaps": "^0.5.8",
+    "express": "^4.14.0",
+    "redis": "^2.6.3"
+  }
+}
