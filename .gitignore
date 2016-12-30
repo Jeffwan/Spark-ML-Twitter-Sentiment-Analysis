@@ -11,3 +11,6 @@ setting.xml
 # Intellij files
 *.iml
 .idea/
+
+# node modules
+src/main/webapp/node_modules/
